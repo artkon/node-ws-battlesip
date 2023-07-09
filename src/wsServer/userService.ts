@@ -5,8 +5,9 @@ const users: User[] = [];
 
 export const getUsers = (): User[] => users;
 export const getUser = (userIndex: number): User => users[userIndex];
-export const createUser = (user: User): number => {
+export const createUser = (ws: WebSocket, user: User): number => {
     const usersCount = users.push({
+        ws,
         name: user.name,
         password: user.password,
     });

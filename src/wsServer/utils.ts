@@ -1,20 +1,15 @@
-import { Action, dataType, User } from './types';
+import { Action, ClientDataType } from './types';
 
 
-export const bufferToAction = (buffer: Buffer): Action<User | string> => {
+export const bufferToAction = (buffer: Buffer): Omit<Action<ClientDataType>, 'id'> => {
     try {
-        const action = JSON.parse(buffer.toString());
-        action.data = JSON.parse(action.data);
+        const action: Action<string> = JSON.parse(buffer.toString());
+        const data: ClientDataType = action.data ? JSON.parse(action.data) : undefined;
 
-        return action;
+        return { type: action.type, data };
     } catch (error) {
         console.error(error);
     }
-};
-
-export const showCommand = (action: Action<dataType>) => {
-    console.log('Command:');
-    console.log(action);
 };
 
 export const logAction = (

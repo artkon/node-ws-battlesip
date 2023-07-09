@@ -7,8 +7,8 @@ import { ACTION_RESULTS, ACTIONS } from './constants';
 import { buildResponse, stringifyResponse } from './utils';
 
 
-export const reg = (ws: WebSocket, userData: User): void => {
-    const userIndex = createUser(userData);
+export const reg = (ws, userData: User): number => {
+    const userIndex = createUser(ws, userData);
     const user = getUser(userIndex);
 
     const response = stringifyResponse(buildResponse(ACTIONS.REGISTRATION, {
@@ -18,7 +18,10 @@ export const reg = (ws: WebSocket, userData: User): void => {
         errorText: '',
     }));
 
+    // TODO check if user with same name exists
     ws.send(response);
 
     logAction(`Registration of ${user.name}`, ACTION_RESULTS.DONE);
+
+    return userIndex;
 };
