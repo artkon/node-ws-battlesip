@@ -50,6 +50,7 @@ wss.on('connection', (ws: WebSocket) => {
                 });
             } else {
                 userId = reg(ws, data);
+                showAvailableRooms(ws);
             }
 
             return;
