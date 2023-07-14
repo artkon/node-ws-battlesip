@@ -1,14 +1,22 @@
 import WebSocket from 'ws';
 
 import { bufferToAction } from './utils';
-import { reg, createRoom, showAvailableRooms, addUserToRoom, createGame,
-    addShips, startGame, attack, turn, finish, updateWinners,
+import {
+    createRoom,
+    showAvailableRooms,
+    addUserToRoom,
+    addShips,
+    startGame,
+    attack,
+    reg,
+    createGame,
+    finish
 } from './actions';
 import { ACTIONS } from './actions/constants';
-import { deleteRoom, getOpponentUser, getRoom, getRoomCreator, getRoomUsers } from './roomService';
-import { addGame, getGame } from './gameService';
-import { buildResponse, stringifyResponse } from './actions/utils';
-import { addWin, getWinners } from './winnersService';
+import { getHasUsersShips, getOpponentUser, getRoom } from './roomService';
+import { getRandomPosition } from './utils';
+import { getUsers } from './userService';
+import { wsSendAction } from './actions/utils';
 
 
 const port = 3000;
@@ -17,7 +25,7 @@ const wss = new WebSocket.Server({ port }, () => {
     console.log(`WebSocket server started on port ${port}.`);
 });
 
-const wsClients = new Set<WebSocket>;
+export const wsClients = new Set<WebSocket>;
 
 wss.on('connection', (ws: WebSocket) => {
     console.log('Client Connected');
@@ -25,23 +33,31 @@ wss.on('connection', (ws: WebSocket) => {
     wsClients.add(ws);
 
     let userId;
-    let roomIndex; // TODO assign after join room
+    let roomId;
 
-    // TODO console.log command and result
     ws.on('message', (buffer: Buffer) => {
         const { type, data } = bufferToAction(buffer);
 
         if (type === ACTIONS.REGISTRATION) {
-            // check if user exists, password validation
-            userId = reg(ws, data);
+            const user = getUsers().find(({ name }) => (name === data.name));
+            if (user && (user.password !== data.password)) {
+                console.log('Incorrect password');
+                wsSendAction(ws, ACTIONS.REGISTRATION, {
+                    name: user.name,
+                    index: userId,
+                    error: true,
+                    errorText: 'Incorrect password',
+                });
+            } else {
+                userId = reg(ws, data);
+            }
 
             return;
         }
 
         if (type === ACTIONS.CREATE_ROOM) {
-
-            // TODO create free room or join room after creation
-            roomIndex = createRoom(ws, userId);
+            roomId = createRoom(ws, userId);
+            console.log('create room');
 
             wsClients.forEach((wsClient) => {
                 if (wsClient.readyState === WebSocket.OPEN) {
@@ -53,19 +69,22 @@ wss.on('connection', (ws: WebSocket) => {
         }
 
         if (type === ACTIONS.CREATE_SINGLE_ROOM) {
-            roomIndex = createRoom(ws, userId, true);
+            roomId = createRoom(ws, userId, true);
+            console.log('create room with bot');
+
+            createGame(roomId);
+            console.log('create game');
 
             return;
         }
 
         if (type === ACTIONS.JOIN_ROOM) {
-            // TODO forbid join to room owner of room
             addUserToRoom(ws, userId, data.indexRoom);
-            roomIndex = data.indexRoom;
+            roomId = data.indexRoom;
+            console.log('join room');
 
-            const roomCreator = getRoomCreator(roomIndex);
-            const idGame = addGame(roomCreator.userId);
-            createGame(idGame, [{ ws: roomCreator.ws, id: roomCreator.userId }, { ws, id: userId }]);
+            createGame(roomId);
+            console.log('create game');
 
             wsClients.forEach((wsClient) => {
                 if (wsClient.readyState === WebSocket.OPEN) {
@@ -79,76 +98,43 @@ wss.on('connection', (ws: WebSocket) => {
 
         if (type === ACTIONS.ADD_SHIPS) {
             addShips({ ...data, userId });
+            console.log('add ships');
 
-            const roomUsers = getRoom(roomIndex).roomUsers
-                .map(({ ws, userId }) => ({ ws, userId }));
-            const game = getGame(data.gameId);
-            if (roomUsers.every(({ userId }) => (game[userId]?.length > 0))) {
-                startGame({ users: roomUsers, gameId: data.gameId });
+            if (getHasUsersShips(roomId)) {
+                startGame(roomId);
+                console.log('start game');
             }
 
             return;
         }
 
         if (type === ACTIONS.ATTACK) {
-            const { turnId } = getGame(data.gameId);
-            if (turnId !== data.indexPlayer) {
-                console.log(`turnId: ${turnId}`)
-                console.log(`indexPlayer: ${data.indexPlayer}`)
-                return;
-            }
+            attack(wsClients,roomId, userId, data);
 
-            const isMyAttack = data.indexPlayer === userId;
-            const opponentUserId = getOpponentUser(roomIndex, data.indexPlayer).userId;
-            const result = attack({ ...data, userId: isMyAttack ? opponentUserId : userId });
+            return;
+        }
 
-            console.log(result);
-            // TODO check turn, skip for cheater
-            const roomUsers = getRoom(roomIndex).roomUsers
-                .map(({ ws, userId }) => ({ ws, userId }));
-
-            roomUsers.forEach(({ ws }) => {
-                ws.send(stringifyResponse(buildResponse(ACTIONS.ATTACK, {
-                    position: {
-                        x: data.x,
-                        y: data.y,
-                    },
-                    currentPlayer: data.indexPlayer,
-                    status: result,
-                })));
-            });
-
-            if (result === 'miss') {
-                turn({ users: roomUsers, gameId: data.gameId }, true);
-
-                return;
-            }
-
-            if (result === 'finish') {
-                const roomUser = getRoomUsers(roomIndex, data.indexPlayer);
-                addWin(roomUser);
-                const winners = getWinners();
-                finish(roomUsers, roomUser);
-                updateWinners(wsClients, winners);
-
-                return;
-            }
+        if (type === ACTIONS.RANDOM_ATTACK) {
+            const randomPosition = getRandomPosition();
+            console.log('random attack');
+            attack(wsClients,roomId, userId, { ...data, ...randomPosition });
 
             return;
         }
     });
 
-    ws.on('error', console.error);
-
     ws.on('close', () => {
-        // TODO finish action if it was during game, remove room
-        wsClients.delete(ws);
-        if (roomIndex) {
-            // TODO fix deleting room
-            deleteRoom(roomIndex);
+        if (roomId && !getRoom(roomId).isFinished) {
+            const opponent = getOpponentUser(roomId, userId);
+            finish(wsClients, roomId, opponent.userId);
+            console.log('finish game');
         }
+
+        wsClients.delete(ws);
         console.log('A client disconnected.');
     });
+
+    ws.on('error', console.error);
 });
 
 wss.on('error', console.error);

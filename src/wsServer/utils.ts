@@ -18,3 +18,10 @@ export const logAction = (
 ): void => (
     console.log(`${command} => ${result}`)
 );
+
+export const getRandomPosition = () => {
+    const x = Math.floor(Math.random() * 10);
+    const y = Math.floor(Math.random() * 10);
+
+    return { x, y };
+};

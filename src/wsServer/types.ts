@@ -4,9 +4,11 @@ export type indexType = number;
 export type idType = number;
 
 export interface User {
-    ws: WebSocket;
+    ws?: WebSocket;
     name: nameType;
+    id: idType;
     password: string;
+    wins?: number;
 }
 
 export interface Action<Data> {
@@ -16,29 +18,12 @@ export interface Action<Data> {
 }
 // TODO fix any
 export type ClientDataType = any
-export type ServerAction = ServerRegistrationAction
-
-export type ClientRegistrationAction = Action<User>
-export type ClientCreateRoomAction = Action<ClientCreateActionPayload>
-type ClientCreateActionPayload = undefined;
-interface ClientJoinRoomActionPayload {
-    indexRoom: indexType,
-}
-export type ClientJoinRoomAction = Action<ClientJoinRoomActionPayload>
-
-interface ServerRegistrationActionPayload {
-    name: nameType;
-    index: indexType;
-    error: boolean;
-    errorText: string;
-}
-export type ServerRegistrationAction = Action<ServerRegistrationActionPayload>
-
 
 export interface RoomUser {
-    ws: WebSocket;
+    ws?: WebSocket;
     name: nameType;
     userId: idType;
+    ships?: IShip[]
 }
 
 export interface Room {
@@ -46,12 +31,8 @@ export interface Room {
     roomUsers: RoomUser[];
     isSingle?: boolean;
     hasStarted?: boolean;
-}
-
-export interface Winner {
-    name: nameType,
-    id: idType,
-    wins: number,
+    isFinished: boolean;
+    turnId?: idType;
 }
 
 export interface IShip {
@@ -64,10 +45,4 @@ export interface IShip {
     type: 'small' | 'medium' | 'large' | 'huge'
     hits?: number;
     isSunk?: boolean;
-}
-
-export interface IGame {
-    gameId: idType;
-    [key: idType]: IShip[];
-    turnId: idType,
 }

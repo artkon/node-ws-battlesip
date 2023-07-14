@@ -1,10 +1,16 @@
-import { buildResponse, stringifyResponse } from './utils';
+import { getRoom } from '../roomService';
+
 import { ACTIONS } from './constants';
+import { wsSendAction } from './utils';
 
 
-export const createGame = (idGame, users) => {
-    users.forEach((user) => user.ws.send(stringifyResponse(buildResponse(ACTIONS.CREATE_GAME, {
-        idGame,
-        idPlayer: user.id,
-    }))))
+export const createGame = (roomId) => {
+    const users = getRoom(roomId).roomUsers.filter(({ ws }) => Boolean(ws));
+
+    users.forEach(({ ws, userId }) => {
+        wsSendAction(ws, ACTIONS.CREATE_GAME, {
+            idGame: roomId,
+            idPlayer: userId,
+        });
+    })
 };

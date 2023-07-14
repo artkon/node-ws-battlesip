@@ -1,15 +1,16 @@
-import { buildResponse, stringifyResponse } from './utils';
-import { ACTIONS } from './constants';
 import { getRooms } from '../roomService';
+
+import { wsSendAction } from './utils';
+import { ACTIONS } from './constants';
 
 
 export const showAvailableRooms = (ws: WebSocket) => {
-    const data = getRooms()
-        .filter(({ hasStarted }) => (!hasStarted))
+    const response = getRooms()
+        .filter(({ hasStarted, isSingle }) => (!hasStarted && !isSingle))
         .map(({ roomId, roomUsers: [{ name, userId: index }] }) => ({
             roomId,
             roomUsers: [{ name, index }],
         }));
 
-    ws.send(stringifyResponse(buildResponse(ACTIONS.SHOW_AVAILABLE_ROOMS, data)));
+    wsSendAction(ws, ACTIONS.SHOW_AVAILABLE_ROOMS, response);
 };

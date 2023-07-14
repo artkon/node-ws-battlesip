@@ -1,18 +1,21 @@
-import { getGame } from '../gameService';
+import { getRoom, getRoomUser } from '../roomService';
 
-import { buildResponse, stringifyResponse } from './utils';
+import { wsSendAction } from './utils';
 import { ACTIONS } from './constants';
 import { turn } from './turn';
 
 
-export const startGame = ({ users, gameId }) => {
-    users.forEach(({ userId, ws }, index) => {
-        const ships = getGame(gameId)[userId];
-        ws.send(stringifyResponse(buildResponse(ACTIONS.START_GAME, {
-            ships,
-            currentPlayerIndex: index,
-        })));
-    });
+export const startGame = (roomId) => {
+    const room = getRoom(roomId);
 
-    turn({ users, gameId });
+    room.roomUsers
+        .filter(({ ws }) => Boolean(ws))
+        .forEach(({ userId, ws }, index) => {
+            wsSendAction(ws, ACTIONS.START_GAME, {
+                ships: getRoomUser(roomId, userId).ships,
+                currentPlayerIndex: index,
+            });
+        });
+
+    turn(roomId);
 };

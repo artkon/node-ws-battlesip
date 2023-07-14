@@ -1,4 +1,4 @@
-import { setShips } from '../gameService';
+import { setShips } from '../roomService';
 
 
 export const addShips = ({ gameId, ships, userId }): void => {

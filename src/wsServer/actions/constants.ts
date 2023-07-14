@@ -8,6 +8,7 @@ export enum ACTIONS {
     ADD_SHIPS = 'add_ships',
     START_GAME = 'start_game',
     TURN = 'turn',
+    RANDOM_ATTACK = 'randomAttack',
     ATTACK = 'attack',
     FINISH = 'finish',
     UPDATE_WINNERS = 'update_winners',
